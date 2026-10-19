@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Planner — Günün, cebinde</title>
+<meta name="description" content="Telegram’dan sabah brifingi gönderen, Gemini ile gününü planlayan kişisel ajanda. Google Apps Script ile yapıldı.">
+<meta name="theme-color" content="#6c4cff">
+<meta property="og:title" content="Planner — Günün, cebinde">
+<meta property="og:description" content="Telegram’dan sabah brifingi, Gemini ile akıllı planlama, alışkanlık takibi. Kendi yaptığım kişisel ajanda.">
+<meta property="og:image" content="screenshots/og.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Planner">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<style>
+:root{--bg:#f3f1ff;--glass:rgba(255,255,255,.66);--glass-b:rgba(255,255,255,.85);--text:#1a1730;--muted:#5f5a80;--faint:#9a95b8;--line:rgba(90,70,180,.13);
+  --accent:#6c4cff;--grad:linear-gradient(135deg,#6c4cff 0%,#b44cff 52%,#ff5fa2 100%);--shadow:0 2px 6px rgba(60,30,160,.05),0 16px 44px rgba(60,30,160,.12);--blob:.55}
+@media (prefers-color-scheme:dark){:root{--bg:#0a0918;--glass:rgba(32,28,62,.55);--glass-b:rgba(255,255,255,.09);--text:#f1efff;--muted:#aaa4cf;--faint:#6f6a95;--line:rgba(255,255,255,.08);--accent:#9580ff;--shadow:0 2px 6px rgba(0,0,0,.3),0 16px 44px rgba(0,0,0,.4);--blob:.35}}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:inherit}
+button{font:inherit;cursor:pointer;border:0;background:none;color:inherit}
+.bgfx{position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none}
+.bgfx i{position:absolute;border-radius:50%;filter:blur(80px);opacity:var(--blob);animation:float 24s ease-in-out infinite alternate}
+.bgfx i:nth-child(1){width:600px;height:600px;background:#7c5cff;top:-200px;left:-160px}
+.bgfx i:nth-child(2){width:520px;height:520px;background:#ff6fb5;top:30%;right:-200px;animation-duration:28s}
+.bgfx i:nth-child(3){width:440px;height:440px;background:#33c6ff;bottom:-160px;left:30%;animation-duration:32s;opacity:calc(var(--blob)*.7)}
+@keyframes float{50%{transform:translate(70px,50px) scale(1.12)}100%{transform:translate(-40px,80px) scale(.95)}}
+.wrap{position:relative;z-index:1;max-width:1160px;margin:0 auto;padding:0 20px}
+.glass{background:var(--glass);backdrop-filter:blur(22px) saturate(170%);-webkit-backdrop-filter:blur(22px) saturate(170%);border:1px solid var(--glass-b);box-shadow:var(--shadow)}
+.grad-t{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:14px 22px;border-radius:16px;font-weight:700;font-size:15px;text-decoration:none;transition:all .2s;border:1px solid var(--line);background:var(--glass);backdrop-filter:blur(14px)}
+.btn:hover{transform:translateY(-2px)}
+.btn.pri{background:var(--grad);color:#fff;border-color:transparent;box-shadow:0 10px 28px rgba(108,76,255,.4)}
+.btn.pri:hover{box-shadow:0 14px 36px rgba(108,76,255,.55)}
+.btn.sm{padding:9px 15px;font-size:14px;border-radius:13px}
+
+/* üst menü */
+nav.top{position:sticky;top:12px;z-index:10;margin:12px auto 0;max-width:1160px;padding:0 20px}
+nav.top .in{display:flex;align-items:center;gap:12px;padding:10px 10px 10px 16px;border-radius:20px}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:19px;letter-spacing:-.02em;text-decoration:none}
+.logo img{width:34px;height:34px;border-radius:10px;box-shadow:0 6px 16px rgba(108,76,255,.35)}
+nav.top .sp{flex:1}
+nav.top .lnk{font-weight:600;font-size:14px;color:var(--muted);text-decoration:none;padding:8px 10px}
+nav.top .lnk:hover{color:var(--text)}
+
+/* kahraman */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center;padding:70px 0 40px}
+.badge{display:inline-flex;align-items:center;gap:8px;padding:7px 14px 7px 8px;border-radius:30px;font-size:13px;font-weight:700;color:var(--muted)}
+.badge b{background:var(--grad);color:#fff;padding:3px 9px;border-radius:20px;font-size:11px}
+h1{font-size:clamp(40px,6vw,68px);line-height:1.02;letter-spacing:-.045em;margin:20px 0 18px;font-weight:800}
+.lead{font-size:18px;line-height:1.6;color:var(--muted);max-width:520px;margin:0 0 28px}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.stack{display:flex;gap:8px;flex-wrap:wrap;margin-top:28px;font-size:12px;font-weight:700;color:var(--muted)}
+.stack span{padding:6px 12px;border-radius:20px;border:1px solid var(--line);background:var(--glass)}
+.visual{position:relative;height:620px}
+.phone{position:absolute;width:290px;border-radius:44px;padding:10px;background:#15122b;box-shadow:0 30px 80px rgba(40,20,120,.35),inset 0 0 0 2px rgba(255,255,255,.08)}
+.phone img{display:block;width:100%;border-radius:35px}
+.phone.a{right:150px;top:10px;transform:rotate(-4deg);z-index:2;animation:hov 7s ease-in-out infinite}
+.phone.b{right:0;top:70px;transform:rotate(5deg);width:260px;opacity:.95;animation:hov 8s ease-in-out infinite reverse}
+@keyframes hov{50%{translate:0 -12px}}
+.show-m{display:none}
+.notif{text-align:left;position:absolute;z-index:3;width:300px;border-radius:20px;padding:14px 16px;font-size:13px;line-height:1.5}
+.notif .h{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px}
+.notif .h img{width:20px;height:20px;border-radius:6px}
+.notif .h i{margin-left:auto;font-style:normal;font-weight:600;color:var(--faint)}
+.notif.n1{left:-10px;top:60px;animation:in1 1s .4s both}
+.notif.n2{left:30px;bottom:40px;animation:in1 1s .9s both}
+@keyframes in1{from{opacity:0;transform:translateY(20px) scale(.95)}}
+
+/* bölümler */
+section{padding:70px 0}
+.st{text-align:center;max-width:640px;margin:0 auto 40px}
+.st small{font-size:13px;font-weight:800;letter-spacing:.12em;text-transform:uppercase}
+.st h2{font-size:clamp(30px,4vw,44px);letter-spacing:-.035em;margin:10px 0 12px;line-height:1.1}
+.st p{color:var(--muted);font-size:17px;line-height:1.6;margin:0}
+.feats{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.feat{border-radius:24px;padding:26px;transition:transform .25s}
+.feat:hover{transform:translateY(-4px)}
+.feat .ic{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;font-size:26px;background:var(--grad);box-shadow:0 8px 20px rgba(108,76,255,.35);margin-bottom:16px}
+.feat h3{margin:0 0 8px;font-size:18px;letter-spacing:-.02em}
+.feat p{margin:0;color:var(--muted);line-height:1.6;font-size:15px}
+
+.gallery{display:flex;gap:22px;overflow-x:auto;padding:10px 4px 30px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}
+.gallery figure{margin:0;flex:0 0 auto;scroll-snap-align:center;text-align:center}
+.gallery figure img{display:block;border-radius:26px;box-shadow:var(--shadow);border:1px solid var(--glass-b)}
+.gallery .ph img{width:250px}
+.gallery .dk img{width:620px;border-radius:18px}
+.gallery figcaption{font-size:13px;font-weight:700;color:var(--muted);margin-top:12px}
+
+/* nasıl çalışır */
+.arch{border-radius:28px;padding:34px;display:grid;grid-template-columns:1fr auto 1.2fr auto 1fr;gap:16px;align-items:center}
+.node{border-radius:20px;padding:18px;text-align:center;background:var(--glass);border:1px solid var(--line)}
+.node b{display:block;font-size:15px;margin-top:8px}
+.node span{font-size:12.5px;color:var(--muted);line-height:1.5;display:block;margin-top:4px}
+.node .e{font-size:30px}
+.node.core{background:var(--grad);color:#fff;border:0;box-shadow:0 14px 34px rgba(108,76,255,.4)}
+.node.core span{color:rgba(255,255,255,.85)}
+.col{display:grid;gap:12px}
+.arrow{font-size:22px;color:var(--faint);text-align:center;font-weight:800}
+
+/* telegram sohbet */
+.chatwrap{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center}
+.chat{border-radius:28px;padding:20px;max-width:440px;margin-left:auto;width:100%}
+.chat .bar{display:flex;align-items:center;gap:10px;padding-bottom:14px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.chat .bar img{width:38px;height:38px;border-radius:12px}
+.chat .bar b{font-size:15px;display:block}
+.chat .bar span{font-size:12px;color:var(--accent);font-weight:600}
+.msg{max-width:88%;padding:11px 14px;border-radius:18px;font-size:13.5px;line-height:1.55;margin-bottom:10px;white-space:pre-line}
+.msg.bot{background:var(--glass);border:1px solid var(--line);border-bottom-left-radius:6px}
+.msg.me{margin-left:auto;background:var(--grad);color:#fff;border-bottom-right-radius:6px}
+.kb{display:grid;gap:6px;margin:-4px 0 10px;max-width:88%}
+.kb span{display:block;text-align:center;padding:8px;border-radius:12px;font-size:12.5px;font-weight:700;background:var(--glass);border:1px solid var(--line);color:var(--accent)}
+.points{display:grid;gap:14px;margin-top:24px}
+.points div{display:flex;gap:14px;align-items:flex-start;font-size:15px;line-height:1.55;color:var(--muted)}
+.points div b{color:var(--text)}
+.points div i{font-style:normal;font-size:20px;width:40px;height:40px;flex-shrink:0;border-radius:12px;display:grid;place-items:center;background:var(--glass);border:1px solid var(--line)}
+
+.final{border-radius:32px;padding:56px 30px;text-align:center;background:var(--grad);color:#fff;box-shadow:0 24px 60px rgba(108,76,255,.4);position:relative;overflow:hidden}
+.final:before,.final:after{content:"";position:absolute;border-radius:50%;background:rgba(255,255,255,.1)}
+.final:before{width:300px;height:300px;right:-80px;top:-120px}.final:after{width:200px;height:200px;left:-60px;bottom:-100px}
+.final h2{font-size:clamp(28px,4vw,42px);margin:0 0 12px;letter-spacing:-.03em;position:relative}
+.final p{margin:0 0 26px;opacity:.9;font-size:17px;position:relative}
+.final .btn{background:#fff;color:#4b2bd6;border:0;position:relative}
+footer{padding:40px 0 60px;text-align:center;color:var(--muted);font-size:14px}
+footer a{color:var(--accent);font-weight:700;text-decoration:none}
+footer .own{font-size:12px;margin-top:10px}
+footer .own button{color:var(--faint);text-decoration:underline;font-size:12px}
+
+.reveal{opacity:0;transform:translateY(24px);transition:opacity .7s cubic-bezier(.2,.8,.2,1),transform .7s cubic-bezier(.2,.8,.2,1)}
+.reveal.on{opacity:1;transform:none}
+
+/* uygulama modu */
+#app{position:fixed;inset:0;z-index:100;background:var(--bg);display:none}
+#app.on{display:block}
+#app iframe{position:absolute;left:0;right:0;top:env(safe-area-inset-top);bottom:0;width:100%;height:calc(100% - env(safe-area-inset-top));border:0;background:transparent}
+#splash{position:absolute;inset:0;display:grid;place-items:center;align-content:center;gap:18px;background:var(--bg);transition:opacity .5s;z-index:2}
+#splash img{width:96px;height:96px;border-radius:26px;box-shadow:0 18px 40px rgba(108,76,255,.45);animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(1.07)}}
+#splash p{margin:0;font-weight:700;color:var(--muted);font-size:14px}
+#splash .fb{display:none;font-size:13px;color:var(--muted);text-align:center;max-width:280px;line-height:1.5}
+#splash .fb a{color:var(--accent);font-weight:700}
+#splash.hide{opacity:0;pointer-events:none}
+
+/* anahtar penceresi */
+.modal{position:fixed;inset:0;z-index:200;background:rgba(20,10,50,.4);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);display:none;place-items:center;padding:20px}
+.modal.on{display:grid}
+.modal .box{width:min(380px,100%);border-radius:26px;padding:28px;text-align:center;background:var(--bg);border:1px solid var(--glass-b);box-shadow:0 30px 80px rgba(0,0,0,.3)}
+.modal img{width:64px;height:64px;border-radius:18px;margin-bottom:6px}
+.modal h3{margin:6px 0 4px;font-size:21px;letter-spacing:-.02em}
+.modal p{margin:0 0 18px;color:var(--muted);font-size:14px;line-height:1.5}
+.modal input{width:100%;padding:13px 15px;border-radius:14px;border:1.5px solid var(--line);background:var(--glass);font:inherit;font-size:16px;color:var(--text);outline:0;margin-bottom:12px;text-align:center}
+.modal input:focus{border-color:var(--accent)}
+.modal .btn{width:100%;justify-content:center}
+.modal .err{color:#ef4565;font-size:13px;font-weight:600;min-height:18px;margin:-4px 0 8px}
+.modal .x{display:block;margin:12px auto 0;font-size:13px;color:var(--muted);font-weight:600}
+#install{display:none}
+
+@media (max-width:900px){
+  .hero{grid-template-columns:1fr;padding:44px 0 10px;text-align:center}
+  .lead{margin-left:auto;margin-right:auto}
+  .cta,.stack{justify-content:center}
+  .visual{height:540px;max-width:380px;margin:0 auto;width:100%}
+  .phone.a{right:auto;left:50%;margin-left:-130px;width:260px}
+  .phone.b{display:none}
+  .notif{width:250px}.notif.n1{left:-6px;top:30px}.notif.n2{left:auto;right:-6px;bottom:30px}
+  .feats{grid-template-columns:1fr}
+  .arch{grid-template-columns:1fr;padding:22px}
+  .arrow{transform:rotate(90deg)}
+  .chatwrap{grid-template-columns:1fr}
+  .chat{margin:0 auto}
+  nav.top .hide-m{display:none}
+  nav.top .show-m{display:inline}
+  .gallery .dk img{width:440px}
+  section{padding:50px 0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="bgfx"><i></i><i></i><i></i></div>
+
+<nav class="top"><div class="in glass">
+  <a class="logo" href="#"><img src="icons/icon-192.png" alt="">Planner</a>
+  <span class="sp"></span>
+  <a class="lnk hide-m" href="#ozellikler">Özellikler</a>
+  <a class="lnk hide-m" href="#nasil">Nasıl çalışır</a>
+  <button class="btn sm" id="install">📲 Yükle</button>
+  <a class="btn sm" href="demo.html">Demo</a>
+  <button class="btn sm pri" data-open><span class="hide-m">Uygulamayı aç</span><span class="show-m">Giriş</span></button>
+</div></nav>
+
+<div class="wrap">
+  <header class="hero">
+    <div>
+      <span class="badge glass"><b>YENİ</b> Kişisel proje · Kendi yaptığım ajanda</span>
+      <h1>Günün,<br><span class="grad-t">cebinde.</span></h1>
+      <p class="lead">Planner her sabah Telegram’dan “bugün bunları yapmalısın” diye yazan, teslim tarihleri yaklaşınca uyaran ve Gemini ile günümü planlayan kişisel ajandam. Bilgisayarda da telefonda da aynı.</p>
+      <div class="cta">
+        <a class="btn pri" href="demo.html">✨ Canlı demoyu dene</a>
+        <a class="btn" href="#ozellikler">Neler yapabiliyor?</a>
+      </div>
+      <div class="stack"><span>Google Apps Script</span><span>Google Sheets</span><span>Telegram Bot API</span><span>Gemini API</span><span>PWA</span></div>
+    </div>
+    <div class="visual">
+      <div class="phone b"><img src="screenshots/phone-calendar.jpg" alt="Takvim görünümü"></div>
+      <div class="phone a"><img src="screenshots/phone-today.jpg" alt="Bugün görünümü"></div>
+      <div class="notif n1 glass"><div class="h"><img src="icons/icon-192.png" alt="">Planner Bot<i>08:02</i></div>☀️ <b>Günaydın Ahmet!</b> Bugün 4 işin var. En kritik: Veri Yapıları ödevi (23:59).</div>
+      <div class="notif n2 glass"><div class="h"><img src="icons/icon-192.png" alt="">Planner Bot<i>şimdi</i></div>⏳ <b>Vize sınavı</b> 3 gün sonra. Gemini bugün 45 dk tekrar öneriyor.</div>
+    </div>
+  </header>
+</div>
+
+<section id="ozellikler"><div class="wrap">
+  <div class="st reveal"><small class="grad-t">Özellikler</small><h2>Ajandadan fazlası</h2><p>Yapılacakları not almak kolay. Zor olan, doğru zamanda hatırlamak ve gerçekten bitirmek.</p></div>
+  <div class="feats">
+    <div class="feat glass reveal"><div class="ic">☀️</div><h3>Sabah brifingi</h3><p>Her sabah Telegram’a bugünün işleri, gecikenler ve yaklaşan teslimler gelir. Tek dokunuşla “tamamlandı” işaretlenir.</p></div>
+    <div class="feat glass reveal"><div class="ic">🤖</div><h3>Gemini ile planlama</h3><p>Görevlerime bakıp saat saat günlük plan çıkarır, haftanın sonunda da ilerlememi yorumlar.</p></div>
+    <div class="feat glass reveal"><div class="ic">🧩</div><h3>Alt adımlara böl</h3><p>“Tez yaz” gibi büyük bir işi, tarihlere dağıtılmış küçük ve yapılabilir adımlara ayırır.</p></div>
+    <div class="feat glass reveal"><div class="ic">💬</div><h3>Mesajla görev ekle</h3><p>Bota “Diş hekimi cuma 15:30 #Sağlık” yazmak yeterli. Tarihi, saati ve kategoriyi kendisi anlar.</p></div>
+    <div class="feat glass reveal"><div class="ic">🔥</div><h3>Alışkanlık serileri</h3><p>Su, kitap, spor… Haftanın günlerine göre takip, seri sayacı ve son 30 günün ısı haritası.</p></div>
+    <div class="feat glass reveal"><div class="ic">📱</div><h3>Her cihazda</h3><p>Telefona simgeyle yüklenen uygulama, bilgisayarda tarayıcı. Veriler kendi Google hesabımda kalır.</p></div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="st reveal"><small class="grad-t">Ekranlar</small><h2>Göz atın</h2><p>Açık ve koyu tema, cam efektli kartlar, tamamlarken küçük bir konfeti kutlaması.</p></div>
+  <div class="gallery reveal">
+    <figure class="ph"><img src="screenshots/phone-today.jpg" alt="" loading="lazy"><figcaption>Bugün</figcaption></figure>
+    <figure class="dk"><img src="screenshots/desktop-today.jpg" alt="" loading="lazy"><figcaption>Bilgisayarda Gemini planı</figcaption></figure>
+    <figure class="ph"><img src="screenshots/phone-ai.jpg" alt="" loading="lazy"><figcaption>Alt adımlara bölme</figcaption></figure>
+    <figure class="ph"><img src="screenshots/phone-habits.jpg" alt="" loading="lazy"><figcaption>Alışkanlıklar</figcaption></figure>
+    <figure class="dk"><img src="screenshots/desktop-stats.jpg" alt="" loading="lazy"><figcaption>İstatistik (koyu tema)</figcaption></figure>
+    <figure class="ph"><img src="screenshots/phone-calendar.jpg" alt="" loading="lazy"><figcaption>Takvim</figcaption></figure>
+  </div>
+</div></section>
+
+<section><div class="wrap chatwrap">
+  <div class="reveal">
+    <div class="st" style="text-align:left;margin:0"><small class="grad-t">Telegram</small><h2>Uygulamayı açmama bile gerek yok</h2>
+    <p>Bot, Planner’ın uzaktan kumandası. Liste görüyorum, görev ekliyorum, bitirdiklerimi işaretliyorum.</p></div>
+    <div class="points">
+      <div><i>⏰</i><span><b>Saatli hatırlatma.</b> Toplantıdan 30 dakika önce haber verir.</span></div>
+      <div><i>🌙</i><span><b>Gün sonu özeti.</b> Biteni, kalanı gösterir; kalanları tek tuşla yarına taşır.</span></div>
+      <div><i>📊</i><span><b>Haftalık rapor.</b> Pazar akşamı istatistikler ve Gemini’nin önerileri.</span></div>
+    </div>
+  </div>
+  <div class="chat glass reveal">
+    <div class="bar"><img src="icons/icon-192.png" alt=""><div><b>Planner Bot</b><span>bot</span></div></div>
+    <div class="msg bot">☀️ <b>Günaydın Ahmet!</b>
+📌 <b>Bugün (3)</b>
+1. 🔴 23:59 Veri Yapıları ödevi (2/4)
+2. 🟡 18:30 Spor salonu
+3. 🟡 Staj için CV güncelle
+⚠️ Geciken: Elektrik faturası</div>
+    <div class="kb"><span>✅ Veri Yapıları ödevi</span><span>✅ Spor salonu</span></div>
+    <div class="msg me">Annemi ara yarın 19:00 #Kişisel !</div>
+    <div class="msg bot">➕ <b>Eklendi:</b> Annemi ara
+📅 Yarın · 🕒 19:00 · #Kişisel · 🔴 önemli</div>
+    <div class="msg me">/bitti 3</div>
+    <div class="msg bot">🎉 Tamamlandı: ✅ Staj için CV güncelle</div>
+  </div>
+</div></section>
+
+<section id="nasil"><div class="wrap">
+  <div class="st reveal"><small class="grad-t">Nasıl çalışır</small><h2>Sunucusuz, ücretsiz, bana ait</h2><p>Tüm sistem Google’ın ücretsiz altyapısında çalışıyor; ayrı bir sunucu ya da aylık ücret yok.</p></div>
+  <div class="arch glass reveal">
+    <div class="col">
+      <div class="node"><div class="e">📱</div><b>Telefon & PC</b><span>Yüklenebilir web uygulaması (PWA)</span></div>
+      <div class="node"><div class="e">✈️</div><b>Telegram Bot</b><span>Brifing, hatırlatma, komutlar</span></div>
+    </div>
+    <div class="arrow">⇄</div>
+    <div class="node core"><div class="e">⚙️</div><b>Google Apps Script</b><span>Uygulama sunucusu · 15 dakikada bir çalışan zamanlayıcı · hızlı ekleme için Türkçe tarih ayrıştırıcı</span></div>
+    <div class="arrow">⇄</div>
+    <div class="col">
+      <div class="node"><div class="e">📄</div><b>Google Sheets</b><span>Görevler ve alışkanlıklar</span></div>
+      <div class="node"><div class="e">✨</div><b>Gemini API</b><span>Plan, alt adımlar, haftalık yorum</span></div>
+    </div>
+  </div>
+</div></section>
+
+<section><div class="wrap">
+  <div class="final reveal"><h2>Kendin dene</h2><p>Demo tamamen tarayıcında çalışır; görev ekle, tamamla, Gemini’ye planlat.</p>
+    <a class="btn" href="demo.html">✨ Canlı demoyu aç</a></div>
+</div></section>
+
+<footer><div class="wrap">
+  <div><span id="ownerLine">Tasarlayan ve geliştiren</span> · 2026</div>
+  <div class="own">Planner’ın sahibi misin? <button data-open>Uygulamayı aç</button> · <button id="forget" style="display:none">Bu cihazda anahtarı unut</button></div>
+</div></footer>
+
+<!-- uygulama modu -->
+<div id="app"><div id="splash"><img src="icons/icon-512.png" alt=""><p>Planner açılıyor…</p>
+  <div class="fb" id="fallback">Uzun sürdü mü? <a id="direct" target="_blank" rel="noopener">Doğrudan aç</a> · <a href="./" id="backLanding">Tanıtım sayfası</a></div></div></div>
+
+<div class="modal" id="keyModal"><form class="box" id="keyForm">
+  <img src="icons/icon-192.png" alt=""><h3>Planner’ı aç</h3>
+  <p>Kurulumda aldığın erişim anahtarını gir. Bu cihazda hatırlanır.</p>
+  <input id="keyInp" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Erişim anahtarı">
+  <div class="err" id="keyErr"></div>
+  <button class="btn pri" type="submit" id="keyBtn">Aç</button>
+  <button class="x" type="button" id="keyCancel">Vazgeç · <a href="demo.html" style="color:inherit">demoyu dene</a></button>
+</form></div>
+
+<script>
+(function(){
+  const CFG = window.PLANNER_CONFIG || {};
+  const APP = (CFG.appUrl || '').trim();
+  const configured = /^https:\/\/script\.google\.com\/.+\/exec$/.test(APP) && !/BURAYA/.test(APP);
+  const $ = s => document.querySelector(s);
+  const LS = { get(){ try { return localStorage.getItem('planner_key') || ''; } catch(e){ return ''; } },
+               set(v){ try { v ? localStorage.setItem('planner_key', v) : localStorage.removeItem('planner_key'); } catch(e){} } };
+
+  // sahip bilgisi
+  const owner = CFG.owner || '';
+  $('#ownerLine').innerHTML = owner ? (CFG.ownerUrl ? 'Tasarlayan ve geliştiren <a href="'+CFG.ownerUrl+'" target="_blank" rel="noopener">'+owner+'</a>' : 'Tasarlayan ve geliştiren <b>'+owner+'</b>') : 'Planner';
+
+  // #k=ANAHTAR ile gelinirse kaydet ve adres çubuğundan temizle
+  const hm = location.hash.match(/k=([^&]+)/);
+  if (hm) { LS.set(decodeURIComponent(hm[1])); history.replaceState(null, '', location.pathname + location.search); }
+  if (LS.get()) $('#forget').style.display = 'inline';
+
+  const standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+  const wantApp = new URLSearchParams(location.search).has('app') || standalone;
+
+  async function ping(key){
+    const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 9000);
+    try { const r = await fetch(APP + '?ping=' + encodeURIComponent(key), { signal: ctl.signal }); const j = await r.json(); return j.ok === true ? 'ok' : 'bad'; }
+    catch(e){ return 'unknown'; } finally { clearTimeout(t); }
+  }
+
+  function showKey(msg){
+    $('#keyErr').textContent = msg || '';
+    $('#keyModal').classList.add('on');
+    setTimeout(() => $('#keyInp').focus(), 50);
+  }
+  $('#keyCancel').onclick = e => { if (e.target.tagName === 'A') return; $('#keyModal').classList.remove('on'); if (wantApp && !LS.get()) location.href = './'; };
+  $('#keyForm').onsubmit = async e => {
+    e.preventDefault();
+    const k = $('#keyInp').value.trim(); if (!k) return;
+    if (!configured) { $('#keyErr').textContent = 'config.js içine web uygulaması adresini yazmalısın.'; return; }
+    $('#keyBtn').textContent = 'Kontrol ediliyor…';
+    const r = await ping(k);
+    $('#keyBtn').textContent = 'Aç';
+    if (r === 'bad') { $('#keyErr').textContent = 'Anahtar yanlış görünüyor.'; return; }
+    LS.set(k); $('#keyModal').classList.remove('on'); openApp(true);
+  };
+  document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => {
+    if (!configured) { alert('Önce config.js dosyasına Apps Script web uygulaması adresini yaz.'); return; }
+    if (LS.get()) openApp(); else showKey();
+  });
+  $('#forget').onclick = () => { LS.set(''); $('#forget').style.display = 'none'; alert('Anahtar bu cihazdan silindi.'); };
+
+  function openApp(verified){
+    const key = LS.get();
+    if (!configured) { document.body.innerHTML = '<p style="padding:40px;font-family:sans-serif">config.js içine web uygulaması adresini yazmalısın.</p>'; return; }
+    if (!key) { showKey(); return; }
+    const app = $('#app'); app.classList.add('on'); document.body.style.overflow = 'hidden';
+    if (!new URLSearchParams(location.search).has('app')) history.replaceState(null, '', '?app=1');
+    const src = APP + '?k=' + encodeURIComponent(key);
+    $('#direct').href = src;
+    if (!app.querySelector('iframe')) {
+      const f = document.createElement('iframe');
+      f.src = src; f.title = 'Planner'; f.allow = 'clipboard-write; clipboard-read';
+      f.onload = () => setTimeout(() => $('#splash').classList.add('hide'), 350);
+      app.appendChild(f);
+      setTimeout(() => { $('#fallback').style.display = 'block'; }, 12000);
+    }
+    if (!verified) ping(key).then(r => { if (r === 'bad') { LS.set(''); app.classList.remove('on'); app.querySelector('iframe') && app.querySelector('iframe').remove(); $('#splash').classList.remove('hide'); showKey('Anahtar geçersiz, yeniden gir.'); } });
+  }
+
+  if (wantApp) openApp();
+
+  // kaydırınca beliren öğeler
+  const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { x.target.classList.add('on'); io.unobserve(x.target); } }), { threshold: .12 }) : null;
+  document.querySelectorAll('.reveal').forEach((el, i) => { el.style.transitionDelay = (i % 3) * 0.08 + 's'; io ? io.observe(el) : el.classList.add('on'); });
+
+  // yükleme düğmesi (Android/Chrome)
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('#install').style.display = 'inline-flex'; });
+  $('#install').onclick = async () => { if (!deferred) return; deferred.prompt(); await deferred.userChoice; deferred = null; $('#install').style.display = 'none'; };
+
+  if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+})();
+</script>
+</body>
+</html>
